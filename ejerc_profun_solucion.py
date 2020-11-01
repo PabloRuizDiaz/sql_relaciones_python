@@ -37,8 +37,8 @@ def insert_libro(group):
 
     try:
         c.executemany("""
-                    INSERT INTO libros (title, pags, author)
-                    SELECT ?, ?, autores.id FROM libros, autores WHERE autores.author = ? ;
+                    INSERT INTO libros (title, pags, authors)
+                    SELECT ?, ?, autores.id FROM autores WHERE autores.author = ? ;
                     """, group)
     
     except sqlite3.Error as err:
@@ -46,6 +46,62 @@ def insert_libro(group):
 
     conn.commit()
     conn.close()
+
+
+def fetch(data_libro=0):
+    conn = sqlite3.connect('libreria_sql.db')
+    c = conn.cursor()
+
+    if data_libro == 0:
+        c.execute("""
+                SELECT 
+                    libros.id,
+                    libros.title,
+                    libros.pags,
+                    autores.author
+                FROM libros
+                INNER JOIN autores ON libros.authors = autores.id;
+                """)
+    else:
+        c.execute("""
+                SELECT 
+                    libros.id,
+                    libros.title,
+                    libros.pags,
+                    autores.author
+                FROM libros
+                INNER JOIN autores ON libros.authors = autores.id
+                WHERE libros.id = ?;
+                """, (data_libro,))
+    
+    while True:
+        row = c.fetchone()
+    
+        if row is None:
+            break
+    
+        print(row)
+    
+    conn.close()
+
+
+def search_author(book_title):
+    conn = sqlite3.connect('libreria_sql.db')
+    c = conn.cursor()
+
+    c.execute("""
+            SELECT 
+                autores.author
+            FROM libros
+            INNER JOIN autores ON libros.authors = autores.id
+            WHERE libros.title = ?;
+            """, (book_title,))
+    
+    row = c.fetchone()
+    
+    conn.close()
+
+    return row
 
 
 if __name__ == '__main__':
@@ -68,8 +124,11 @@ if __name__ == '__main__':
             [id] INTEGER PRIMARY KEY AUTOINCREMENT,
             [title] TEXT NOT NULL,
             [pags] INTEGER,
-            [author] INTEGER NOT NULL REFERENCES autor(id));
+            [authors] INTEGER NOT NULL REFERENCES autores(id));
             """)
+    
+    conn.commit()
+    conn.close()
     
     chunksize = int(input('Ingrese valor de Chunksize: '))
         
@@ -80,7 +139,7 @@ if __name__ == '__main__':
         for row in reader:
             copy_autores = row['autor']
             
-            chunk.append(copy_autores)
+            chunk.append([copy_autores])
             
             if len(chunk) == chunksize:
                 insert_autor(chunk)
@@ -105,6 +164,12 @@ if __name__ == '__main__':
         if chunk:
             insert_libro(chunk)
     
-    conn.commit()
-    conn.close()
-    
+    # data_libro = int(input('Seleccione cual Libro desea ver informacion por ID: '))
+
+    # fetch(data_libro)
+
+    book_title = str(input('Ingrese nombre del libro: '))
+
+    autor_libro = search_author(book_title)
+
+    print(autor_libro)
